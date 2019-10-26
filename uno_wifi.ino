@@ -52,46 +52,6 @@ float accelValue[3] = {0.0, 0.0, 0.0};
 // die property value
 int dieNumberValue = 1;
 
-// grab the current time from internet time service
-unsigned long getNow()
-{
-    IPAddress address(129, 6, 15, 28); // time.nist.gov NTP server
-    const int NTP_PACKET_SIZE = 48;
-    byte packetBuffer[NTP_PACKET_SIZE];
-    WiFiUDP Udp;
-    Udp.begin(2390);
-
-    memset(packetBuffer, 0, NTP_PACKET_SIZE);
-    packetBuffer[0] = 0b11100011;     // LI, Version, Mode
-    packetBuffer[1] = 0;              // Stratum, or type of clock
-    packetBuffer[2] = 6;              // Polling Interval
-    packetBuffer[3] = 0xEC;           // Peer Clock Precision
-    packetBuffer[12]  = 49;
-    packetBuffer[13]  = 0x4E;
-    packetBuffer[14]  = 49;
-    packetBuffer[15]  = 52;
-    Udp.beginPacket(address, 123);
-    Udp.write(packetBuffer, NTP_PACKET_SIZE);
-    Udp.endPacket();
-
-    // wait to see if a reply is available
-    int waitCount = 0;
-    while (waitCount < 20) {
-        delay(500);
-        waitCount++;
-        if (Udp.parsePacket() ) {
-            Udp.read(packetBuffer, NTP_PACKET_SIZE);
-            unsigned long highWord = word(packetBuffer[40], packetBuffer[41]);
-            unsigned long lowWord = word(packetBuffer[42], packetBuffer[43]);
-            unsigned long secsSince1900 = highWord << 16 | lowWord;
-
-            Udp.stop();
-            return (secsSince1900 - 2208988800UL);
-        }
-    }
-    return 0;
-}
-
 // IoT Hub MQTT publish topics
 static const char IOT_EVENT_TOPIC[] = "devices/{device_id}/messages/events/";
 static const char IOT_TWIN_REPORTED_PROPERTY[] = "$iothub/twin/PATCH/properties/reported/?$rid={request_id}";
@@ -296,7 +256,7 @@ void setup()
     // create SAS token and user name for connecting to MQTT broker
     String url = iothubHost + urlEncode(String("/devices/" + deviceId).c_str());
     char *devKey = (char *)sharedAccessKey.c_str();
-    long expire = getNow() + 864000;
+    long expire = WiFi.getTime() + 864000;
     String sasToken = createIotHubSASToken(devKey, url, expire);
     String username = iothubHost + "/" + deviceId + "/api-version=2016-11-14";
 
